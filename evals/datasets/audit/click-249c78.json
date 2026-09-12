@@ -1,0 +1,53 @@
+{
+  "id": "click-249c78",
+  "dataset": "audit",
+  "source": "https://github.com/pallets/click",
+  "commit": "6aabf099bfdd4c1e75fe8d0e0d4241372b988ab1",
+  "image": "python:3.12-slim",
+  "bug": {
+    "file": "src/click/core.py",
+    "line": 125,
+    "col": 64,
+    "kind": "constant",
+    "before": "False",
+    "after": "True",
+    "description": "ligne 125 : `False` → `True` (constant)"
+  },
+  "patch": "--- a/src/click/core.py\n+++ b/src/click/core.py\n@@ -122,7 +122,7 @@\n \n \n def batch(iterable: cabc.Iterable[V], batch_size: int) -> list[tuple[V, ...]]:\n-    return list(zip(*repeat(iter(iterable), batch_size), strict=False))\n+    return list(zip(*repeat(iter(iterable), batch_size), strict=True))\n \n \n @contextmanager\n",
+  "validation": {
+    "checked_at": "2026-09-12T11:52:27+00:00",
+    "tests_before": "failed (2035 passed)",
+    "tests_after": "failed (2035 passed)",
+    "baseline_failures": [
+      "tests.test_utils.test_echo_via_pager::test_echo_via_pager[test0- less ]",
+      "tests.test_utils.test_echo_via_pager::test_echo_via_pager[test0- less]",
+      "tests.test_utils.test_echo_via_pager::test_echo_via_pager[test0-less]",
+      "tests.test_utils.test_echo_via_pager::test_echo_via_pager[test1- less ]",
+      "tests.test_utils.test_echo_via_pager::test_echo_via_pager[test1- less]",
+      "tests.test_utils.test_echo_via_pager::test_echo_via_pager[test1-less]",
+      "tests.test_utils.test_echo_via_pager::test_echo_via_pager[test2- less ]",
+      "tests.test_utils.test_echo_via_pager::test_echo_via_pager[test2- less]",
+      "tests.test_utils.test_echo_via_pager::test_echo_via_pager[test2-less]",
+      "tests.test_utils.test_echo_via_pager::test_echo_via_pager[test3- less ]",
+      "tests.test_utils.test_echo_via_pager::test_echo_via_pager[test3- less]",
+      "tests.test_utils.test_echo_via_pager::test_echo_via_pager[test3-less]",
+      "tests.test_utils.test_echo_via_pager::test_echo_via_pager[test4- less ]",
+      "tests.test_utils.test_echo_via_pager::test_echo_via_pager[test4- less]",
+      "tests.test_utils.test_echo_via_pager::test_echo_via_pager[test4-less]",
+      "tests.test_utils.test_echo_via_pager::test_echo_via_pager[test7- less ]",
+      "tests.test_utils.test_echo_via_pager::test_echo_via_pager[test7- less]",
+      "tests.test_utils.test_echo_via_pager::test_echo_via_pager[test7-less]",
+      "tests.test_utils.test_echo_via_pager::test_echo_via_pager[test8- less ]",
+      "tests.test_utils.test_echo_via_pager::test_echo_via_pager[test8- less]",
+      "tests.test_utils.test_echo_via_pager::test_echo_via_pager[test8-less]",
+      "tests.test_utils.test_echo_via_pager::test_echo_via_pager[test9- less ]",
+      "tests.test_utils.test_echo_via_pager::test_echo_via_pager[test9- less]",
+      "tests.test_utils.test_echo_via_pager::test_echo_via_pager[test9-less]"
+    ],
+    "survived": true
+  },
+  "review": {
+    "status": "unreviewed",
+    "note": ""
+  }
+}

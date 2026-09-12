@@ -4,7 +4,8 @@ import pytest
 from typer.testing import CliRunner
 
 from robot.cli import app
-from robot.evals import Run, Store, host_environment
+from robot.evals import Run, Store
+from robot.fingerprint import host_environment
 
 
 @pytest.fixture

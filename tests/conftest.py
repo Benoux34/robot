@@ -1,5 +1,6 @@
 import pytest
 
+from robot.env_cache import EnvCache
 from robot.install import PIP_ENV, TOOLS_CMD
 from robot.sandbox import Sandbox
 
@@ -21,3 +22,13 @@ def workspace(tool_sandbox):
         return tool_sandbox
 
     return load
+
+
+@pytest.fixture
+def cache():
+    store = EnvCache()
+    before = {entry.tag for entry in store.entries()}
+    yield store
+    for entry in store.entries():
+        if entry.tag not in before:
+            store.remove(entry.tag)

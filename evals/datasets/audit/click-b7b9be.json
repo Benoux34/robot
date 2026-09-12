@@ -1,0 +1,53 @@
+{
+  "id": "click-b7b9be",
+  "dataset": "audit",
+  "source": "https://github.com/pallets/click",
+  "commit": "6aabf099bfdd4c1e75fe8d0e0d4241372b988ab1",
+  "image": "python:3.12-slim",
+  "bug": {
+    "file": "src/click/_termui_impl.py",
+    "line": 314,
+    "col": 28,
+    "kind": "arithmetic",
+    "before": "-",
+    "after": "+",
+    "description": "ligne 314 : `-` → `+` (arithmetic)"
+  },
+  "patch": "--- a/src/click/_termui_impl.py\n+++ b/src/click/_termui_impl.py\n@@ -311,7 +311,7 @@\n         else:\n             step = time.time() - self.start\n \n-        self.avg = self.avg[-6:] + [step]\n+        self.avg = self.avg[+6:] + [step]\n \n         self.eta_known = self.length is not None\n \n",
+  "validation": {
+    "checked_at": "2026-09-12T11:56:21+00:00",
+    "tests_before": "failed (2035 passed)",
+    "tests_after": "failed (2035 passed)",
+    "baseline_failures": [
+      "tests.test_utils.test_echo_via_pager::test_echo_via_pager[test0- less ]",
+      "tests.test_utils.test_echo_via_pager::test_echo_via_pager[test0- less]",
+      "tests.test_utils.test_echo_via_pager::test_echo_via_pager[test0-less]",
+      "tests.test_utils.test_echo_via_pager::test_echo_via_pager[test1- less ]",
+      "tests.test_utils.test_echo_via_pager::test_echo_via_pager[test1- less]",
+      "tests.test_utils.test_echo_via_pager::test_echo_via_pager[test1-less]",
+      "tests.test_utils.test_echo_via_pager::test_echo_via_pager[test2- less ]",
+      "tests.test_utils.test_echo_via_pager::test_echo_via_pager[test2- less]",
+      "tests.test_utils.test_echo_via_pager::test_echo_via_pager[test2-less]",
+      "tests.test_utils.test_echo_via_pager::test_echo_via_pager[test3- less ]",
+      "tests.test_utils.test_echo_via_pager::test_echo_via_pager[test3- less]",
+      "tests.test_utils.test_echo_via_pager::test_echo_via_pager[test3-less]",
+      "tests.test_utils.test_echo_via_pager::test_echo_via_pager[test4- less ]",
+      "tests.test_utils.test_echo_via_pager::test_echo_via_pager[test4- less]",
+      "tests.test_utils.test_echo_via_pager::test_echo_via_pager[test4-less]",
+      "tests.test_utils.test_echo_via_pager::test_echo_via_pager[test7- less ]",
+      "tests.test_utils.test_echo_via_pager::test_echo_via_pager[test7- less]",
+      "tests.test_utils.test_echo_via_pager::test_echo_via_pager[test7-less]",
+      "tests.test_utils.test_echo_via_pager::test_echo_via_pager[test8- less ]",
+      "tests.test_utils.test_echo_via_pager::test_echo_via_pager[test8- less]",
+      "tests.test_utils.test_echo_via_pager::test_echo_via_pager[test8-less]",
+      "tests.test_utils.test_echo_via_pager::test_echo_via_pager[test9- less ]",
+      "tests.test_utils.test_echo_via_pager::test_echo_via_pager[test9- less]",
+      "tests.test_utils.test_echo_via_pager::test_echo_via_pager[test9-less]"
+    ],
+    "survived": true
+  },
+  "review": {
+    "status": "unreviewed",
+    "note": ""
+  }
+}

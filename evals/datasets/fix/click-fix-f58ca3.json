@@ -1,0 +1,32 @@
+{
+  "id": "click-fix-f58ca3",
+  "dataset": "fix",
+  "source": "https://github.com/pallets/click",
+  "commit": "f58ca3e81424a35626c8a475eb59ab95589008ce",
+  "image": "python:3.12-slim",
+  "bug": {
+    "files": [
+      "src/click/_utils.py"
+    ],
+    "parent": "420c8fb44eeadb537cae69d2fee3796e808558dd",
+    "description": "Fix `copy`, `deepcopy` and `pickle` of `Sentinel` members",
+    "tests": [
+      "tests/test_utils/test_sentinel.py"
+    ]
+  },
+  "patch": "diff --git a/src/click/_utils.py b/src/click/_utils.py\nindex 05ee2e9..2d4e8f2 100644\n--- a/src/click/_utils.py\n+++ b/src/click/_utils.py\n@@ -18,6 +18,15 @@ class Sentinel(enum.Enum):\n     def __repr__(self) -> str:\n         return f\"{self.__class__.__name__}.{self.name}\"\n \n+    def __copy__(self) -> Sentinel:\n+        return self\n+\n+    def __deepcopy__(self, memo: dict[int, t.Any]) -> Sentinel:\n+        return self\n+\n+    def __reduce_ex__(self, protocol: object) -> tuple[t.Any, ...]:\n+        return getattr, (self.__class__, self.name)\n+\n \n UNSET: t.Literal[Sentinel.UNSET] = Sentinel.UNSET\n \"\"\"Sentinel used to indicate that a value is not set.\"\"\"\n",
+  "validation": {
+    "fail_to_pass": [
+      "tests.test_utils.test_sentinel::test_parameter_duplication[pickle]",
+      "tests.test_utils.test_sentinel::test_sentinel_duplication_preserves_identity[pickle-Sentinel.FLAG_NEEDS_VALUE]",
+      "tests.test_utils.test_sentinel::test_sentinel_duplication_preserves_identity[pickle-Sentinel.UNSET]"
+    ],
+    "pass_to_pass": 1976,
+    "tests_broken": "failed (1973 passed, 27 failed, 25 skipped) en 4.7s",
+    "tests_fixed": "failed (1976 passed, 24 failed, 25 skipped) en 4.8s"
+  },
+  "review": {
+    "status": "unreviewed",
+    "note": ""
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "id": "itsdangerous-c43821",
+  "dataset": "audit",
+  "source": "https://github.com/pallets/itsdangerous",
+  "commit": "672971d66a2ef9f85151e53283113f33d642dabd",
+  "image": "python:3.12-slim",
+  "bug": {
+    "file": "src/itsdangerous/url_safe.py",
+    "line": 60,
+    "col": 40,
+    "kind": "arithmetic",
+    "before": "-",
+    "after": "+",
+    "description": "ligne 60 : `-` → `+` (arithmetic)"
+  },
+  "patch": "--- a/src/itsdangerous/url_safe.py\n+++ b/src/itsdangerous/url_safe.py\n@@ -57,7 +57,7 @@\n         is_compressed = False\n         compressed = zlib.compress(json)\n \n-        if len(compressed) < (len(json) - 1):\n+        if len(compressed) < (len(json) + 1):\n             json = compressed\n             is_compressed = True\n \n",
+  "validation": {
+    "checked_at": "2026-09-12T10:38:16+00:00",
+    "tests_before": "passed (297 passed)",
+    "tests_after": "passed (297 passed)",
+    "survived": true
+  },
+  "review": {
+    "status": "unreviewed",
+    "note": ""
+  }
+}
