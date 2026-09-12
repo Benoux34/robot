@@ -59,6 +59,7 @@ def audit_repo(
             environment = host_environment() | sandbox_environment(sandbox)
 
         step("croisement des signaux")
+        duration = time.monotonic() - started
         return AuditReport(
             source=source,
             commit=repo.commit,

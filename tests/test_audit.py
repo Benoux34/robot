@@ -140,3 +140,39 @@ def test_warnings_on_non_python_repo():
 
 def test_no_warning_on_healthy_python_repo():
     assert sample_report().warnings() == []
+
+
+def test_pipeline_end_to_end(tmp_path):
+    import subprocess
+
+    from robot.audit import audit_repo
+
+    repo = tmp_path / "demo"
+    (repo / "src" / "demo").mkdir(parents=True)
+    (repo / "tests").mkdir()
+    (repo / "pyproject.toml").write_text(
+        '[project]\nname = "demo"\nversion = "0.1.0"\nrequires-python = ">=3.10"\n'
+        '[build-system]\nrequires = ["hatchling"]\nbuild-backend = "hatchling.build"\n'
+    )
+    (repo / "src" / "demo" / "__init__.py").write_text(
+        "import os\n\ndef sign(n):\n    if n > 0:\n        return 1\n    return -1\n"
+    )
+    (repo / "tests" / "test_demo.py").write_text(
+        "from demo import sign\ndef test_sign(): assert sign(5) == 1\n"
+    )
+    for args in (["init", "--quiet"], ["add", "."], ["commit", "--quiet", "-m", "fix: initial"]):
+        subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@t", *args],
+                       cwd=repo, check=True, capture_output=True)
+
+    steps = []
+    report = audit_repo(str(repo), since="10 years ago", on_progress=steps.append)
+
+    assert report.tests.status == "passed"
+    assert report.tests.coverage.files[0].path == "src/demo/__init__.py"
+    assert [i.code for i in report.lint.issues] == ["F401"]
+    assert [r.path for r in report.risks] == ["src/demo/__init__.py"]
+    assert report.warnings() == []
+    assert report.metrics()["tests_passed"] == 1
+    assert report.environment["ruff"] == "0.16.7"
+    assert len(report.timings) == len(steps) == 9
+    assert sum(d for _, d in report.timings) <= report.duration + 0.1
