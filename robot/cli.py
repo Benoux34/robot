@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import sys
 import time
+import uuid
 from pathlib import Path
 from typing import Annotated
 
@@ -10,8 +11,9 @@ import typer
 
 from robot.audit import audit_repo
 from robot.env_cache import EnvCache
-from robot.evals import (DEFAULT_DB, DEFAULT_FIX_DIR, Run, Store, build_audit_dataset,
-                         build_fix_dataset, load_tasks, result_from_metrics, run_dataset)
+from robot.evals import (DEFAULT_CHART, DEFAULT_DB, DEFAULT_FIX_DIR, DEFAULT_RESULTS, Run, Store,
+                         build_audit_dataset, build_fix_dataset, compare, group_from_runs,
+                         load_tasks, result_from_metrics, results_markdown, run_dataset, score_svg)
 from robot.evals.dataset import DEFAULT_DATASET_DIR
 from robot.recon.hotspots import DEFAULT_SINCE
 from robot.repo import CloneError
@@ -251,6 +253,7 @@ def evaluate(
     workers: Annotated[int, typer.Option(help="Tâches en parallèle")] = 1,
     retry: Annotated[int, typer.Option(help="Nouvelles tentatives sur erreur d'infrastructure")] = 0,
     resume: Annotated[bool, typer.Option("--resume", help="Ignore les tâches déjà réussies")] = False,
+    label: Annotated[str, typer.Option(help="Nom de cette version (ex: v1-baseline)")] = "",
 ) -> None:
     """Mesure les stratégies de classement sur un dataset de bugs injectés."""
     tasks = [t for t in load_tasks(directory) if t.review["status"] != "drop"]
@@ -291,14 +294,17 @@ def evaluate(
                         fg=typer.colors.YELLOW)
 
     if record:
+        group_id = uuid.uuid4().hex
         with Store(db) as store:
             for result in fresh:
                 store.save(Run(
                     kind="eval", dataset="audit", task_id=result.task_id,
                     source=result.bug_file, status=result.status, duration=result.duration,
                     metrics={"ranks": result.ranks, "candidates": result.candidates},
-                    params={"seed": seed},
+                    params={"seed": seed}, label=label, group_id=group_id,
                 ))
+        typer.secho(f"Groupe {label or group_id[:8]} — `robot results` pour mettre à jour RESULTS.md",
+                    fg=typer.colors.GREEN, err=True)
         typer.secho(f"{len(fresh)} résultats enregistrés dans {db}", fg=typer.colors.GREEN, err=True)
 
 
@@ -330,3 +336,64 @@ def dataset_build_fix(
         typer.echo(f"      fichiers : {', '.join(task.bug['files'])}")
         typer.echo(f"      tests rouge→vert : {len(task.validation['fail_to_pass'])} "
                    f"(dont {task.validation['fail_to_pass'][0]})")
+
+
+@app.command()
+def results(
+    out: Annotated[Path, typer.Option(help="Fichier markdown à écrire")] = DEFAULT_RESULTS,
+    chart: Annotated[Path, typer.Option(help="Graphe SVG à écrire")] = DEFAULT_CHART,
+    db: Annotated[Path, typer.Option(help="Base des runs")] = DEFAULT_DB,
+) -> None:
+    """Regénère RESULTS.md et le graphe depuis la base des runs."""
+    with Store(db) as store:
+        groups = [group_from_runs(store.runs_in_group(g["group_id"])) for g in store.groups(dataset="audit")]
+
+    if not groups:
+        typer.secho("Aucun groupe d'eval enregistré (lance `robot eval --label ...`).",
+                    fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1)
+
+    chart.parent.mkdir(parents=True, exist_ok=True)
+    chart.write_text(score_svg(groups))
+    out.write_text(results_markdown(groups, chart=chart))
+
+    typer.secho(f"{out} et {chart} mis à jour ({len(groups)} version(s))", fg=typer.colors.GREEN)
+    for group in groups:
+        typer.echo(f"  {group.name:20} {group.headline:.0%}  ({len(group.report.usable)} tâches)")
+
+
+@app.command("compare")
+def compare_groups(
+    before: Annotated[str, typer.Argument(help="Version de référence (label ou id)")],
+    after: Annotated[str, typer.Argument(help="Version à comparer")],
+    strategy: Annotated[str, typer.Option(help="Stratégie comparée")] = "robot",
+    db: Annotated[Path, typer.Option(help="Base des runs")] = DEFAULT_DB,
+) -> None:
+    """Compare deux runs d'eval, tâche par tâche."""
+    with Store(db) as store:
+        ids = [store.find_group(name) for name in (before, after)]
+        for name, found in zip((before, after), ids):
+            if found is None:
+                typer.secho(f"Version introuvable : {name}", fg=typer.colors.RED, err=True)
+                raise typer.Exit(code=1)
+        groups = [group_from_runs(store.runs_in_group(group_id)) for group_id in ids]
+
+    diff = compare(groups[0], groups[1], strategy=strategy)
+    typer.echo(f"{groups[0].name} → {groups[1].name}  (stratégie {strategy}, {diff['shared']} tâches communes)")
+    typer.secho(f"  hit@5 : {groups[0].report.hit_at(strategy, 5):.0%} → "
+                f"{groups[1].report.hit_at(strategy, 5):.0%}  ({diff['delta']:+.0%})",
+                fg=typer.colors.GREEN if diff["delta"] >= 0 else typer.colors.RED)
+
+    for bucket, symbol, color in (("improved", "✅", typer.colors.GREEN),
+                                  ("regressed", "❌", typer.colors.RED),
+                                  ("unchanged", "➖", typer.colors.BRIGHT_BLACK)):
+        rows = diff[bucket]
+        typer.secho(f"  {symbol} {bucket} : {len(rows)}", fg=color)
+        if bucket != "unchanged":
+            for task_id, old, new in rows:
+                typer.echo(f"      {task_id:24} rang {old} → {new}")
+
+    for key, message in (("only_before", "absentes du second run"), ("only_after", "nouvelles tâches")):
+        if diff[key]:
+            typer.secho(f"  ⚠️  {len(diff[key])} {message} : {', '.join(diff[key][:5])}",
+                        fg=typer.colors.YELLOW)

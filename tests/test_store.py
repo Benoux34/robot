@@ -5,6 +5,7 @@ from typer.testing import CliRunner
 
 from robot.cli import app
 from robot.evals import Run, Store
+from robot.evals.store import SCHEMA_VERSION
 from robot.fingerprint import host_environment
 
 
@@ -58,7 +59,7 @@ def test_reopening_keeps_data(tmp_path):
         run_id = first.save(make_run())
     with Store(path) as second:
         assert second.get(run_id) is not None
-        assert second._db.execute("PRAGMA user_version").fetchone()[0] == 1
+        assert second._db.execute("PRAGMA user_version").fetchone()[0] == SCHEMA_VERSION
 
 
 def test_refuses_a_future_schema(tmp_path):
