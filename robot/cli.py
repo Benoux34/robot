@@ -11,7 +11,7 @@ import typer
 from robot.audit import audit_repo
 from robot.env_cache import EnvCache
 from robot.evals import (DEFAULT_DB, DEFAULT_FIX_DIR, Run, Store, build_audit_dataset,
-                         build_fix_dataset, load_tasks, run_dataset)
+                         build_fix_dataset, load_tasks, result_from_metrics, run_dataset)
 from robot.evals.dataset import DEFAULT_DATASET_DIR
 from robot.recon.hotspots import DEFAULT_SINCE
 from robot.repo import CloneError
@@ -248,6 +248,9 @@ def evaluate(
     seed: Annotated[int, typer.Option(help="Graine (stratégie aléatoire)")] = 0,
     db: Annotated[Path, typer.Option(help="Base des runs")] = DEFAULT_DB,
     record: Annotated[bool, typer.Option(help="Enregistre les résultats")] = True,
+    workers: Annotated[int, typer.Option(help="Tâches en parallèle")] = 1,
+    retry: Annotated[int, typer.Option(help="Nouvelles tentatives sur erreur d'infrastructure")] = 0,
+    resume: Annotated[bool, typer.Option("--resume", help="Ignore les tâches déjà réussies")] = False,
 ) -> None:
     """Mesure les stratégies de classement sur un dataset de bugs injectés."""
     tasks = [t for t in load_tasks(directory) if t.review["status"] != "drop"]
@@ -262,7 +265,22 @@ def evaluate(
     def progress(step: str) -> None:
         typer.secho(f"[{time.monotonic() - started:6.1f}s] {step}", fg=typer.colors.BRIGHT_BLACK, err=True)
 
-    report = run_dataset(tasks, seed=seed, on_progress=progress)
+    skip = set()
+    if resume:
+        with Store(db) as store:
+            skip = store.completed_tasks("audit", seed)
+
+    report = run_dataset(tasks, seed=seed, workers=workers, retry=retry, skip=skip, on_progress=progress)
+    fresh = list(report.results)
+
+    if resume and skip:
+        with Store(db) as store:
+            wanted = {t.id for t in tasks}
+            report.results = [
+                result_from_metrics(run.task_id, run.source, run.status, run.duration, run.metrics)
+                for run in store.results_for("audit", seed)
+                if run.task_id in wanted
+            ] + report.results
 
     typer.echo("")
     typer.secho(report.summary(), fg=typer.colors.GREEN)
@@ -274,14 +292,14 @@ def evaluate(
 
     if record:
         with Store(db) as store:
-            for result in report.results:
+            for result in fresh:
                 store.save(Run(
                     kind="eval", dataset="audit", task_id=result.task_id,
                     source=result.bug_file, status=result.status, duration=result.duration,
                     metrics={"ranks": result.ranks, "candidates": result.candidates},
                     params={"seed": seed},
                 ))
-        typer.secho(f"{len(report.results)} résultats enregistrés dans {db}", fg=typer.colors.GREEN, err=True)
+        typer.secho(f"{len(fresh)} résultats enregistrés dans {db}", fg=typer.colors.GREEN, err=True)
 
 
 @dataset_app.command("build-fix")

@@ -114,6 +114,23 @@ class Store:
         rows = self._db.execute(query, {"kind": kind, "dataset": dataset, "limit": limit}).fetchall()
         return [_to_run(row, []) for row in rows]
 
+    def results_for(self, dataset: str, seed: int, kind: str = "eval") -> list[Run]:
+        rows = self._db.execute(
+            "SELECT * FROM runs WHERE kind = ? AND dataset = ? AND status = 'ok'"
+            " AND json_extract(params, '$.seed') = ? ORDER BY created_at",
+            (kind, dataset, seed),
+        ).fetchall()
+        latest = {row["task_id"]: row for row in rows}
+        return [_to_run(row, []) for row in latest.values()]
+
+    def completed_tasks(self, dataset: str, seed: int, kind: str = "eval") -> set[str]:
+        rows = self._db.execute(
+            "SELECT DISTINCT task_id FROM runs WHERE kind = ? AND dataset = ? AND status = 'ok'"
+            " AND json_extract(params, '$.seed') = ?",
+            (kind, dataset, seed),
+        ).fetchall()
+        return {row["task_id"] for row in rows if row["task_id"]}
+
     def close(self) -> None:
         self._db.close()
 

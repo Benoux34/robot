@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import threading
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -48,6 +49,15 @@ def dependency_files(repo_path: Path) -> list[Path]:
         if path.is_file() and not path.is_symlink()
     }
     return sorted(found)
+
+
+_KEY_LOCKS: dict[str, threading.Lock] = {}
+_LOCKS_GUARD = threading.Lock()
+
+
+def lock_for(key: str) -> threading.Lock:
+    with _LOCKS_GUARD:
+        return _KEY_LOCKS.setdefault(key, threading.Lock())
 
 
 class EnvCache:

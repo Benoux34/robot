@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -27,6 +29,13 @@ class TaskResult:
     @property
     def usable(self) -> bool:
         return self.status == "ok"
+
+
+def result_from_metrics(task_id: str, bug_file: str, status: str, duration: float, metrics: dict) -> TaskResult:
+    return TaskResult(
+        task_id=task_id, bug_file=bug_file, status=status, duration=duration,
+        ranks=metrics.get("ranks", {}), candidates=metrics.get("candidates", 0),
+    )
 
 
 @dataclass
@@ -108,15 +117,57 @@ def run_task(task: Task, seed: int = 0, on_progress: Progress = lambda step: Non
     )
 
 
-def run_dataset(tasks: list[Task], seed: int = 0, on_progress: Progress = lambda step: None) -> EvalReport:
+def run_dataset(
+    tasks: list[Task],
+    seed: int = 0,
+    workers: int = 1,
+    retry: int = 0,
+    skip: set[str] | None = None,
+    on_progress: Progress = lambda step: None,
+) -> EvalReport:
     started = time.monotonic()
-    results = []
+    skip = skip or set()
+    todo = [task for task in tasks if task.id not in skip]
 
-    for index, task in enumerate(tasks, 1):
-        on_progress(f"[{index}/{len(tasks)}] {task.id} — {task.bug['file']}:{task.bug['line']}")
+    for task_id in sorted(skip & {t.id for t in tasks}):
+        on_progress(f"déjà fait, ignoré : {task_id}")
+
+    say = _serialised(on_progress)
+    done = 0
+    lock = threading.Lock()
+
+    def work(task: Task) -> TaskResult:
+        nonlocal done
         result = run_task(task, seed=seed)
-        results.append(result)
-        on_progress(f"    {result.status} : robot={result.ranks.get('robot')} "
-                    f"random={result.ranks.get('random')} sur {result.candidates} fichiers")
+        for attempt in range(retry):
+            if result.status != "error":
+                break
+            say(f"    nouvelle tentative ({attempt + 1}/{retry}) : {task.id} — {result.detail}")
+            result = run_task(task, seed=seed)
+
+        with lock:
+            done += 1
+            position = done
+        say(f"[{position}/{len(todo)}] {task.id} — {result.status} "
+            f"robot={result.ranks.get('robot')} random={result.ranks.get('random')} "
+            f"en {result.duration:.0f}s")
+        return result
+
+    if workers > 1:
+        say(f"{len(todo)} tâches sur {workers} workers")
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            results = list(pool.map(work, todo))
+    else:
+        results = [work(task) for task in todo]
 
     return EvalReport(results=results, duration=round(time.monotonic() - started, 1))
+
+
+def _serialised(on_progress: Progress) -> Progress:
+    lock = threading.Lock()
+
+    def say(message: str) -> None:
+        with lock:
+            on_progress(message)
+
+    return say
