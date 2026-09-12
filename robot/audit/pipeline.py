@@ -6,9 +6,10 @@ from collections.abc import Callable
 from pathlib import Path
 
 from robot.audit.report import AuditReport
-from robot.evals.fingerprint import host_environment, sandbox_environment
 from robot.audit.risks import compute_risks
-from robot.install import install
+from robot.env_cache import EnvCache, environment_key, lock_for
+from robot.fingerprint import host_environment, sandbox_environment
+from robot.install import InstallReport, install
 from robot.recon import detect_stack, find_hotspots, run_lint, run_tests
 from robot.recon.hotspots import DEFAULT_SINCE
 from robot.repo import clone_repo
@@ -22,6 +23,8 @@ def audit_repo(
     ref: str | None = None,
     since: str = DEFAULT_SINCE,
     risks_limit: int = 10,
+    use_cache: bool = True,
+    prepare: Callable[[Path], None] | None = None,
     on_progress: Progress = lambda step: None,
 ) -> AuditReport:
     started = time.monotonic()
@@ -35,21 +38,40 @@ def audit_repo(
         step("clone du repo")
         repo = clone_repo(source, Path(tmp) / "repo", ref=ref)
 
+        if prepare is not None:
+            step("préparation du repo (injection)")
+            prepare(repo.path)
+
         step("détection de la stack")
         stack = detect_stack(repo.path)
 
         step("analyse de l'historique git")
         hotspots = find_hotspots(repo.path, since=since)
 
-        with Sandbox(stack.image, network=True) as sandbox:
-            step(f"copie dans le sandbox ({stack.image})")
+        cache = EnvCache() if use_cache else None
+        key = environment_key(repo.path, stack.image)
+        install_report = InstallReport()
+        cached_image, built_here = None, False
+
+        if cache is not None:
+            with lock_for(key):
+                cached_image = cache.find(key)
+                if cached_image is None:
+                    step("construction de l'environnement")
+                    cached_image, install_report = _build_environment(cache, key, stack.image, repo.path)
+                    built_here = True
+
+        with Sandbox(cached_image or stack.image, network=cached_image is None) as sandbox:
+            step(f"copie dans le sandbox ({'cache ' + key if cached_image else stack.image})")
+            sandbox.run("rm -rf /workspace/* /workspace/.[!.]*")
             sandbox.copy_in(repo.path)
 
-            step("installation des dépendances")
-            install_report = install(sandbox, repo.path)
-
-            step("coupure du réseau")
-            sandbox.disable_network()
+            if cached_image is None:
+                if not built_here:
+                    step("installation des dépendances")
+                    install_report = install(sandbox, repo.path)
+                step("coupure du réseau")
+                sandbox.disable_network()
 
             step("lint")
             lint = run_lint(sandbox)
@@ -71,9 +93,20 @@ def audit_repo(
             lint=lint,
             hotspots=hotspots,
             risks=compute_risks(hotspots, tests.coverage, lint, limit=risks_limit),
+            cache="off" if cache is None else ("miss" if built_here else "hit"),
+            cache_key=key,
             timings=_durations(marks, started + duration),
             environment=environment,
         )
+
+
+def _build_environment(cache: EnvCache, key: str, image: str, repo_path: Path) -> tuple[str | None, InstallReport]:
+    with Sandbox(image, network=True) as builder:
+        builder.copy_in(repo_path)
+        report = install(builder, repo_path)
+        if not report.ok:
+            return None, report
+        return cache.save(builder, key), report
 
 
 def _durations(marks: list[tuple[str, float]], end: float) -> list[tuple[str, float]]:

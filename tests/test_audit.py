@@ -165,7 +165,7 @@ def test_pipeline_end_to_end(tmp_path):
                        cwd=repo, check=True, capture_output=True)
 
     steps = []
-    report = audit_repo(str(repo), since="10 years ago", on_progress=steps.append)
+    report = audit_repo(str(repo), since="10 years ago", use_cache=False, on_progress=steps.append)
 
     assert report.tests.status == "passed"
     assert report.tests.coverage.files[0].path == "src/demo/__init__.py"
@@ -174,5 +174,6 @@ def test_pipeline_end_to_end(tmp_path):
     assert report.warnings() == []
     assert report.metrics()["tests_passed"] == 1
     assert report.environment["ruff"] == "0.16.7"
+    assert report.cache == "off"
     assert len(report.timings) == len(steps) == 9
     assert sum(d for _, d in report.timings) <= report.duration + 0.1

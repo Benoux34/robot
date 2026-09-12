@@ -119,6 +119,23 @@ class Sandbox:
             tar.add(src, arcname=".", filter=skip_excluded)
         self._require().put_archive(dest, buffer.getvalue())
 
+    def write_file(self, path: str, content: str) -> None:
+        target = Path(path if path.startswith("/") else f"{WORKDIR}/{path}")
+        data = content.encode()
+        info = tarfile.TarInfo(name=target.name)
+        info.size = len(data)
+        info.mtime = int(time.time())
+
+        buffer = io.BytesIO()
+        with tarfile.open(fileobj=buffer, mode="w") as tar:
+            tar.addfile(info, io.BytesIO(data))
+        self._require().put_archive(str(target.parent), buffer.getvalue())
+
+    def commit(self, repository: str, tag: str, labels: dict[str, str] | None = None) -> str:
+        changes = "\n".join(f"LABEL {key}={value}" for key, value in (labels or {}).items())
+        self._require().commit(repository=repository, tag=tag, changes=changes or None)
+        return f"{repository}:{tag}"
+
     def read_file(self, path: str, max_bytes: int = MAX_READ_BYTES) -> str:
         try:
             stream, stat = self._require().get_archive(path)

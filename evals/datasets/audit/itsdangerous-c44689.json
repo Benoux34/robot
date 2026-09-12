@@ -1,0 +1,27 @@
+{
+  "id": "itsdangerous-c44689",
+  "dataset": "audit",
+  "source": "https://github.com/pallets/itsdangerous",
+  "commit": "672971d66a2ef9f85151e53283113f33d642dabd",
+  "image": "python:3.12-slim",
+  "bug": {
+    "file": "src/itsdangerous/encoding.py",
+    "line": 33,
+    "col": 22,
+    "kind": "arithmetic",
+    "before": "-",
+    "after": "+",
+    "description": "ligne 33 : `-` → `+` (arithmetic)"
+  },
+  "patch": "--- a/src/itsdangerous/encoding.py\n+++ b/src/itsdangerous/encoding.py\n@@ -30,7 +30,7 @@\n     bytes.\n     \"\"\"\n     string = want_bytes(string, encoding=\"ascii\", errors=\"ignore\")\n-    string += b\"=\" * (-len(string) % 4)\n+    string += b\"=\" * (+len(string) % 4)\n \n     try:\n         return base64.urlsafe_b64decode(string)\n",
+  "validation": {
+    "checked_at": "2026-09-12T10:38:02+00:00",
+    "tests_before": "passed (297 passed)",
+    "tests_after": "passed (297 passed)",
+    "survived": true
+  },
+  "review": {
+    "status": "unreviewed",
+    "note": ""
+  }
+}

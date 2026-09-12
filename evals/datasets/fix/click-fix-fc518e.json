@@ -1,0 +1,34 @@
+{
+  "id": "click-fix-fc518e",
+  "dataset": "fix",
+  "source": "https://github.com/pallets/click",
+  "commit": "fc518e41218b447e875fe27244ae692c269bcb77",
+  "image": "python:3.12-slim",
+  "bug": {
+    "files": [
+      "src/click/core.py"
+    ],
+    "parent": "08a7bc6d2a2af02268b09b3b5fd8079546c81c03",
+    "description": "Fix race condition on `KeyboardInterrupt` arriving in `Command.main()`",
+    "tests": [
+      "tests/test_abort_interrupt.py"
+    ]
+  },
+  "patch": "diff --git a/src/click/core.py b/src/click/core.py\nindex de129ec..c3e68b1 100644\n--- a/src/click/core.py\n+++ b/src/click/core.py\n@@ -99,6 +99,11 @@ def _check_nested_chain(\n     raise RuntimeError(message)\n \n \n+def _echo_aborted() -> None:\n+    \"\"\"Write the final abort message to standard error.\"\"\"\n+    echo(_(\"Aborted!\"), file=sys.stderr)\n+\n+\n def _format_deprecated_label(deprecated: bool | str) -> str:\n     \"\"\"Return the parenthesized deprecation label shown in help text.\"\"\"\n     label = _(\"deprecated\").upper()\n@@ -1546,6 +1551,15 @@ class Command:\n         # Process shell completion requests and exit early.\n         self._main_shell_completion(extra, prog_name, complete_var)\n \n+        # Every handler below takes the same two steps: propagate when\n+        # standalone mode is disabled, otherwise collect the message and the\n+        # exit code, and leave both to the teardown after the ``try``. The\n+        # teardown writes the message and exits, and the outermost handler\n+        # holds one policy for every interrupt arriving that late: the\n+        # message may be lost, the intended exit code still wins.\n+        report: cabc.Callable[[], None] | None = None\n+        exit_code = 1\n+\n         try:\n             try:\n                 with self.make_context(prog_name, args, **extra) as ctx:\n@@ -1560,39 +1574,53 @@ class Command:\n                     # even always obvious that `rv` indicates success/failure\n                     # by its truthiness/falsiness\n                     ctx.exit()\n+            except Exit as e:\n+                if not standalone_mode:\n+                    # in non-standalone mode, return the exit code\n+                    # note that this is only reached if `self.invoke` above raises\n+                    # an Exit explicitly -- thus bypassing the check there which\n+                    # would return its result\n+                    # the results of non-standalone execution may therefore be\n+                    # somewhat ambiguous: if there are codepaths which lead to\n+                    # `ctx.exit(1)` and to `return 1`, the caller won't be able to\n+                    # tell the difference between the two\n+                    return e.exit_code\n+\n+                exit_code = e.exit_code\n+            except Abort:\n+                if not standalone_mode:\n+                    raise\n+\n+                report = _echo_aborted\n             except (EOFError, KeyboardInterrupt) as e:\n+                # The blank line closes the terminal's ``^C`` echo.\n                 echo(file=sys.stderr)\n-                raise Abort() from e\n+\n+                if not standalone_mode:\n+                    raise Abort() from e\n+\n+                report = _echo_aborted\n             except ClickException as e:\n                 if not standalone_mode:\n                     raise\n-                e.show()\n-                sys.exit(e.exit_code)\n+\n+                report, exit_code = e.show, e.exit_code\n             except OSError as e:\n-                if e.errno == errno.EPIPE:\n-                    sys.stdout = t.cast(t.TextIO, _PacifyFlushWrapper(sys.stdout))\n-                    sys.stderr = t.cast(t.TextIO, _PacifyFlushWrapper(sys.stderr))\n-                    sys.exit(1)\n-                else:\n+                if e.errno != errno.EPIPE:\n                     raise\n-        except Exit as e:\n-            if standalone_mode:\n-                sys.exit(e.exit_code)\n-            else:\n-                # in non-standalone mode, return the exit code\n-                # note that this is only reached if `self.invoke` above raises\n-                # an Exit explicitly -- thus bypassing the check there which\n-                # would return its result\n-                # the results of non-standalone execution may therefore be\n-                # somewhat ambiguous: if there are codepaths which lead to\n-                # `ctx.exit(1)` and to `return 1`, the caller won't be able to\n-                # tell the difference between the two\n-                return e.exit_code\n-        except Abort:\n+\n+                sys.stdout = t.cast(t.TextIO, _PacifyFlushWrapper(sys.stdout))\n+                sys.stderr = t.cast(t.TextIO, _PacifyFlushWrapper(sys.stderr))\n+\n+            if report is not None:\n+                report()\n+\n+            sys.exit(exit_code)\n+        except (EOFError, KeyboardInterrupt):\n             if not standalone_mode:\n                 raise\n-            echo(_(\"Aborted!\"), file=sys.stderr)\n-            sys.exit(1)\n+\n+            sys.exit(exit_code)\n \n     def _main_shell_completion(\n         self,\n",
+  "validation": {
+    "fail_to_pass": [
+      "tests.test_abort_interrupt::test_interrupt_while_exiting_after_success",
+      "tests.test_abort_interrupt::test_interrupt_while_reporting_abort[body-1]",
+      "tests.test_abort_interrupt::test_interrupt_while_reporting_abort[body-2]",
+      "tests.test_abort_interrupt::test_interrupt_while_reporting_abort[prompt-1]",
+      "tests.test_abort_interrupt::test_interrupt_while_reporting_error"
+    ],
+    "pass_to_pass": 1984,
+    "tests_broken": "failed (1979 passed, 29 failed, 25 skipped) en 5.0s",
+    "tests_fixed": "failed (1984 passed, 24 failed, 25 skipped) en 4.6s"
+  },
+  "review": {
+    "status": "unreviewed",
+    "note": ""
+  }
+}

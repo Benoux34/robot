@@ -25,6 +25,8 @@ class AuditReport:
     lint: LintReport
     hotspots: HotspotReport
     risks: list[FileRisk] = field(default_factory=list)
+    cache: str = "off"
+    cache_key: str = ""
     timings: list[tuple[str, float]] = field(default_factory=list)
     environment: dict = field(default_factory=dict)
 
@@ -32,6 +34,7 @@ class AuditReport:
         coverage = self.tests.coverage
         return {
             "install_ok": self.install.ok,
+            "cache": self.cache,
             "source_files": self.stack.source_files,
             "lines": sum(self.stack.lines_by_language.values()),
             "tests_status": self.tests.status,
@@ -55,7 +58,7 @@ class AuditReport:
                 f"Repo principalement en **{self.stack.main_language or 'langage inconnu'}** : "
                 "Robot n'analyse que du Python. Seuls la structure et l'historique git sont fiables ici."
             )
-        if not self.install.ok:
+        if not self.install.ok and self.cache != "hit":
             failed = [s.cmd for s in self.install.steps if not s.result.ok]
             alerts.append(f"Installation incomplète ({len(failed)} commande(s) en échec) : les tests peuvent être faussés.")
         if self.lint.status != "ok":
@@ -122,6 +125,7 @@ class AuditReport:
             },
             "risks": [asdict(risk) for risk in self.risks],
             "warnings": self.warnings(),
+            "cache": {"state": self.cache, "key": self.cache_key},
             "metrics": self.metrics(),
             "environment": self.environment,
             "timings": [{"step": name, "duration": duration} for name, duration in self.timings],
@@ -151,7 +155,7 @@ class AuditReport:
             "|---|---|",
             f"| Stack | {self.stack.main_language}, {self.stack.source_files} fichiers, "
             f"{sum(self.stack.lines_by_language.values())} lignes, image `{self.stack.image}` |",
-            f"| Installation | {'réussie' if self.install.ok else '**échouée**'} |",
+            f"| Installation | {_install_label(self.install, self.cache)} |",
             f"| Tests | {self.tests.summary()} |",
             f"| Couverture | {coverage.summary() if coverage else 'indisponible'} |",
             f"| Lint | {self.lint.summary()} |",
@@ -199,7 +203,7 @@ class AuditReport:
             ]
             lines.append("")
 
-        if not self.install.ok:
+        if not self.install.ok and self.cache != "hit":
             lines += ["## Installation", "", "| Commande | Résultat |", "|---|---|"]
             lines += [
                 f"| `{s.cmd}` | {'ok' if s.result.ok else '**échec**'} |" for s in self.install.steps
@@ -207,6 +211,12 @@ class AuditReport:
             lines.append("")
 
         return "\n".join(lines)
+
+
+def _install_label(install: InstallReport, cache: str) -> str:
+    if cache == "hit":
+        return "environnement repris du cache (aucune installation)"
+    return "réussie" if install.ok else "**échouée**"
 
 
 def _cell(text: str, limit: int = 120) -> str:

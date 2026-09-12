@@ -1,0 +1,32 @@
+{
+  "id": "itsdangerous-fix-7f4dcf",
+  "dataset": "fix",
+  "source": "https://github.com/pallets/itsdangerous",
+  "commit": "7f4dcf83a07bb3d53f4e0e65ef1b43327b4cca90",
+  "image": "python:3.12-slim",
+  "bug": {
+    "files": [
+      "src/itsdangerous/signer.py"
+    ],
+    "parent": "93ae366874bbd4f69d90495c45b2cd336387496c",
+    "description": "access sha1 lazily",
+    "tests": [
+      "tests/test_itsdangerous/test_serializer.py"
+    ]
+  },
+  "patch": "diff --git a/src/itsdangerous/signer.py b/src/itsdangerous/signer.py\nindex 6410e65..e324dc0 100644\n--- a/src/itsdangerous/signer.py\n+++ b/src/itsdangerous/signer.py\n@@ -37,13 +37,21 @@ class NoneAlgorithm(SigningAlgorithm):\n         return b\"\"\n \n \n+def _lazy_sha1(string: bytes = b\"\") -> t.Any:\n+    \"\"\"Don't access ``hashlib.sha1`` until runtime. FIPS builds may not include\n+    SHA-1, in which case the import and use as a default would fail before the\n+    developer can configure something else.\n+    \"\"\"\n+    return hashlib.sha1(string)\n+\n+\n class HMACAlgorithm(SigningAlgorithm):\n     \"\"\"Provides signature generation using HMACs.\"\"\"\n \n     #: The digest method to use with the MAC algorithm. This defaults to\n     #: SHA1, but can be changed to any other function in the hashlib\n     #: module.\n-    default_digest_method: t.Any = staticmethod(hashlib.sha1)\n+    default_digest_method: t.Any = staticmethod(_lazy_sha1)\n \n     def __init__(self, digest_method: t.Any = None):\n         if digest_method is None:\n@@ -109,7 +117,7 @@ class Signer:\n     #: doesn't apply when used intermediately in HMAC.\n     #:\n     #: .. versionadded:: 0.14\n-    default_digest_method: t.Any = staticmethod(hashlib.sha1)\n+    default_digest_method: t.Any = staticmethod(_lazy_sha1)\n \n     #: The default scheme to use to derive the signing key from the\n     #: secret key and salt. The default is ``django-concat``. Possible\n",
+  "validation": {
+    "fail_to_pass": [
+      "tests.test_itsdangerous.test_serializer",
+      "tests.test_itsdangerous.test_timed",
+      "tests.test_itsdangerous.test_url_safe"
+    ],
+    "pass_to_pass": 297,
+    "tests_broken": "failed (25 passed, 3 error) en 0.4s",
+    "tests_fixed": "passed (297 passed) en 0.9s"
+  },
+  "review": {
+    "status": "unreviewed",
+    "note": ""
+  }
+}

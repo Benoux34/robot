@@ -1,0 +1,27 @@
+{
+  "id": "itsdangerous-563fad",
+  "dataset": "audit",
+  "source": "https://github.com/pallets/itsdangerous",
+  "commit": "672971d66a2ef9f85151e53283113f33d642dabd",
+  "image": "python:3.12-slim",
+  "bug": {
+    "file": "src/itsdangerous/timed.py",
+    "line": 148,
+    "col": 21,
+    "kind": "number",
+    "before": "0",
+    "after": "1",
+    "description": "ligne 148 : `0` → `1` (number)"
+  },
+  "patch": "--- a/src/itsdangerous/timed.py\n+++ b/src/itsdangerous/timed.py\n@@ -145,7 +145,7 @@\n                     date_signed=self.timestamp_to_datetime(ts_int),\n                 )\n \n-            if age < 0:\n+            if age < 1:\n                 raise SignatureExpired(\n                     f\"Signature age {age} < 0 seconds\",\n                     payload=value,\n",
+  "validation": {
+    "checked_at": "2026-09-12T10:38:43+00:00",
+    "tests_before": "passed (297 passed)",
+    "tests_after": "passed (297 passed)",
+    "survived": true
+  },
+  "review": {
+    "status": "unreviewed",
+    "note": ""
+  }
+}

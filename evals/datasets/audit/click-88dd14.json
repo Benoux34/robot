@@ -1,0 +1,53 @@
+{
+  "id": "click-88dd14",
+  "dataset": "audit",
+  "source": "https://github.com/pallets/click",
+  "commit": "6aabf099bfdd4c1e75fe8d0e0d4241372b988ab1",
+  "image": "python:3.12-slim",
+  "bug": {
+    "file": "src/click/types.py",
+    "line": 798,
+    "col": 54,
+    "kind": "number",
+    "before": "1",
+    "after": "2",
+    "description": "ligne 798 : `1` → `2` (number)"
+  },
+  "patch": "--- a/src/click/types.py\n+++ b/src/click/types.py\n@@ -795,7 +795,7 @@\n         if (min_open or max_open) and clamp:\n             raise TypeError(\"Clamping is not supported for open bounds.\")\n \n-    def _clamp(self, bound: float, dir: t.Literal[1, -1], open: bool) -> float:\n+    def _clamp(self, bound: float, dir: t.Literal[1, -2], open: bool) -> float:\n         if not open:\n             return bound\n \n",
+  "validation": {
+    "checked_at": "2026-09-12T11:53:22+00:00",
+    "tests_before": "failed (2035 passed)",
+    "tests_after": "failed (2035 passed)",
+    "baseline_failures": [
+      "tests.test_utils.test_echo_via_pager::test_echo_via_pager[test0- less ]",
+      "tests.test_utils.test_echo_via_pager::test_echo_via_pager[test0- less]",
+      "tests.test_utils.test_echo_via_pager::test_echo_via_pager[test0-less]",
+      "tests.test_utils.test_echo_via_pager::test_echo_via_pager[test1- less ]",
+      "tests.test_utils.test_echo_via_pager::test_echo_via_pager[test1- less]",
+      "tests.test_utils.test_echo_via_pager::test_echo_via_pager[test1-less]",
+      "tests.test_utils.test_echo_via_pager::test_echo_via_pager[test2- less ]",
+      "tests.test_utils.test_echo_via_pager::test_echo_via_pager[test2- less]",
+      "tests.test_utils.test_echo_via_pager::test_echo_via_pager[test2-less]",
+      "tests.test_utils.test_echo_via_pager::test_echo_via_pager[test3- less ]",
+      "tests.test_utils.test_echo_via_pager::test_echo_via_pager[test3- less]",
+      "tests.test_utils.test_echo_via_pager::test_echo_via_pager[test3-less]",
+      "tests.test_utils.test_echo_via_pager::test_echo_via_pager[test4- less ]",
+      "tests.test_utils.test_echo_via_pager::test_echo_via_pager[test4- less]",
+      "tests.test_utils.test_echo_via_pager::test_echo_via_pager[test4-less]",
+      "tests.test_utils.test_echo_via_pager::test_echo_via_pager[test7- less ]",
+      "tests.test_utils.test_echo_via_pager::test_echo_via_pager[test7- less]",
+      "tests.test_utils.test_echo_via_pager::test_echo_via_pager[test7-less]",
+      "tests.test_utils.test_echo_via_pager::test_echo_via_pager[test8- less ]",
+      "tests.test_utils.test_echo_via_pager::test_echo_via_pager[test8- less]",
+      "tests.test_utils.test_echo_via_pager::test_echo_via_pager[test8-less]",
+      "tests.test_utils.test_echo_via_pager::test_echo_via_pager[test9- less ]",
+      "tests.test_utils.test_echo_via_pager::test_echo_via_pager[test9- less]",
+      "tests.test_utils.test_echo_via_pager::test_echo_via_pager[test9-less]"
+    ],
+    "survived": true
+  },
+  "review": {
+    "status": "unreviewed",
+    "note": ""
+  }
+}

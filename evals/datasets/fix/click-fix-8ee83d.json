@@ -1,0 +1,49 @@
+{
+  "id": "click-fix-8ee83d",
+  "dataset": "fix",
+  "source": "https://github.com/pallets/click",
+  "commit": "8ee83ddbf5a7a4c2eac5308c9599c5ee67ee005e",
+  "image": "python:3.12-slim",
+  "bug": {
+    "files": [
+      "src/click/testing.py"
+    ],
+    "parent": "fbdd434028fe07ecf35084c945b43b938dfd639f",
+    "description": "Revert \"Deprecate `isolated_filesystem` and document its limits\"",
+    "tests": [
+      "tests/test_arguments.py",
+      "tests/test_basic.py",
+      "tests/test_shell_completion.py",
+      "tests/test_testing.py",
+      "tests/test_utils/test_open_file.py"
+    ]
+  },
+  "patch": "diff --git a/src/click/testing.py b/src/click/testing.py\nindex cc123d4..19fae4a 100644\n--- a/src/click/testing.py\n+++ b/src/click/testing.py\n@@ -747,39 +747,13 @@ class CliRunner:\n         that affect the contents of the CWD to prevent them from\n         interfering with each other.\n \n-        .. warning::\n-            This helper predates Python 3 and modern pytest, and is not\n-            thread-safe: it relies on :func:`os.chdir`, which mutates\n-            process-global state, and :meth:`invoke` swaps the\n-            process-global standard streams too. Parallelize tests with\n-            processes (``pytest-xdist``), not threads. Locking the\n-            runner (:pr:`3511`, :pr:`3520`, :pr:`3530`) and a\n-            ``set_filesystem()`` API (:issue:`3123`) were declined:\n-            neither removes the global-state mutation. See :issue:`3700`\n-            and :issue:`3501`.\n-\n         :param temp_dir: Create the temporary directory under this\n             directory. If given, the created directory is not removed\n             when exiting.\n \n-        .. deprecated:: 8.5.0\n-            Will be removed in Click 9.0. Use\n-            :class:`tempfile.TemporaryDirectory` or pytest's\n-            ``tmp_path`` fixture with absolute paths instead.\n-\n         .. versionchanged:: 8.0\n             Added the ``temp_dir`` parameter.\n         \"\"\"\n-        import warnings\n-\n-        warnings.warn(\n-            \"'isolated_filesystem' is deprecated and will be removed in Click\"\n-            \" 9.0. Use 'tempfile.TemporaryDirectory' or pytest's 'tmp_path'\"\n-            \" fixture with absolute paths instead.\",\n-            DeprecationWarning,\n-            stacklevel=3,\n-        )\n-\n         cwd = os.getcwd()\n         dt = tempfile.mkdtemp(dir=temp_dir)\n         os.chdir(dt)\n",
+  "validation": {
+    "fail_to_pass": [
+      "tests.test_arguments::test_file_args",
+      "tests.test_arguments::test_file_atomics",
+      "tests.test_basic::test_file_lazy_mode",
+      "tests.test_basic::test_file_option",
+      "tests.test_basic::test_path_option",
+      "tests.test_testing::test_isolated_runner",
+      "tests.test_testing::test_isolated_runner_custom_tempdir",
+      "tests.test_utils.test_open_file::test_open_file",
+      "tests.test_utils.test_open_file::test_open_file_atomic_permissions_existing_file[256]",
+      "tests.test_utils.test_open_file::test_open_file_atomic_permissions_existing_file[292]",
+      "tests.test_utils.test_open_file::test_open_file_atomic_permissions_existing_file[384]",
+      "tests.test_utils.test_open_file::test_open_file_atomic_permissions_existing_file[420]",
+      "tests.test_utils.test_open_file::test_open_file_atomic_permissions_new_file",
+      "tests.test_utils.test_open_file::test_open_file_ignore_invalid_utf8",
+      "tests.test_utils.test_open_file::test_open_file_ignore_no_encoding",
+      "tests.test_utils.test_open_file::test_open_file_respects_ignore"
+    ],
+    "pass_to_pass": 1891,
+    "tests_broken": "failed (1875 passed, 40 failed, 25 skipped) en 4.7s",
+    "tests_fixed": "failed (1891 passed, 24 failed, 25 skipped) en 4.5s"
+  },
+  "review": {
+    "status": "unreviewed",
+    "note": ""
+  }
+}

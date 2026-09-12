@@ -1,0 +1,27 @@
+{
+  "id": "itsdangerous-9522ec",
+  "dataset": "audit",
+  "source": "https://github.com/pallets/itsdangerous",
+  "commit": "672971d66a2ef9f85151e53283113f33d642dabd",
+  "image": "python:3.12-slim",
+  "bug": {
+    "file": "src/itsdangerous/_json.py",
+    "line": 16,
+    "col": 42,
+    "kind": "constant",
+    "before": "False",
+    "after": "True",
+    "description": "ligne 16 : `False` → `True` (constant)"
+  },
+  "patch": "--- a/src/itsdangerous/_json.py\n+++ b/src/itsdangerous/_json.py\n@@ -13,6 +13,6 @@\n \n     @staticmethod\n     def dumps(obj: t.Any, **kwargs: t.Any) -> str:\n-        kwargs.setdefault(\"ensure_ascii\", False)\n+        kwargs.setdefault(\"ensure_ascii\", True)\n         kwargs.setdefault(\"separators\", (\",\", \":\"))\n         return _json.dumps(obj, **kwargs)\n",
+  "validation": {
+    "checked_at": "2026-09-12T10:38:05+00:00",
+    "tests_before": "passed (297 passed)",
+    "tests_after": "passed (297 passed)",
+    "survived": true
+  },
+  "review": {
+    "status": "unreviewed",
+    "note": ""
+  }
+}

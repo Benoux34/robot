@@ -11,6 +11,7 @@ class FileCoverage:
     percent: float
     missing_lines: list[int]
     missing_branches: list[tuple[int, int]]
+    executed_lines: list[int] = field(default_factory=list)
 
     @property
     def missing_ranges(self) -> str:
@@ -42,6 +43,7 @@ def parse_coverage(raw: str) -> CoverageReport:
             percent=float(info["summary"]["percent_covered"]),
             missing_lines=[int(n) for n in info.get("missing_lines", [])],
             missing_branches=[(int(a), int(b)) for a, b in info.get("missing_branches", [])],
+            executed_lines=[int(n) for n in info.get("executed_lines", [])],
         )
         for path, info in data["files"].items()
     ]
